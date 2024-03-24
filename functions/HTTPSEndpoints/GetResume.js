@@ -18,9 +18,9 @@ exports = function({ query, headers, body}, response) {
     // Data can be extracted from the request as follows:
 
     // Query params, e.g. '?user=Jerren&co=companyName&rid=1234' => {co: "companyName", user: "world", rid: "1234"}
-    const user = query.user ?? 'JerrenSaunders';
-    const company = query.co ?? 'Unknown';
-    const resumeID = query.rid ?? 'default';
+    const user = query.user || 'JerrenSaunders';
+    const company = query.co || 'Unknown';
+    const resumeID = query.rid || 'default';
     console.log(`Request from Company: ${company} to view ${user}'s resume: ${resumeID}`);
 
     // You can use 'context' to interact with other application features.
