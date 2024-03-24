@@ -2,7 +2,7 @@
     {
         "http_method": "GET",
         "route": "/resume",
-        "function_name": "GetResume",
+        "function_name": "HTTPSEndpoints/GetResume",
         "validation_method": "NO_VALIDATION",
         "respond_result": false,
         "fetch_custom_user_data": false,

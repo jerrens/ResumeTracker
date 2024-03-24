@@ -1,6 +1,7 @@
 [
     {
-        "name": "GetResume",
-        "private": false
+        "name": "HTTPSEndpoints/GetResume",
+        "private": false,
+        "run_as_system": true
     }
 ]
