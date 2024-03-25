@@ -147,7 +147,7 @@ async function GetDefaultTarget(user, company) {
         company: company,
         jobID: 'default'
       },
-      { projection: responseProjection }
+      responseProjection
     );
     console.log(`defaultCompanyDoc: ${JSON.stringify(defaultCompanyDoc)}`);
     
@@ -167,7 +167,7 @@ async function GetDefaultTarget(user, company) {
     {
       user: user
     },
-    { projection: responseProjection }
+    responseProjection
   );
   console.log(`userProfileDoc: ${JSON.stringify(userProfileDoc)}`);
   
