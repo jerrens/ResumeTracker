@@ -11,80 +11,165 @@
  * 
  * @route GET /resume
  * @group resume
- * @param {HTTPSEndpointRequest} request
- * @param {HTTPSEndpointResponse} response
+ * @param {HTTPSEndpointRequest} req
+ * @param {HTTPSEndpointResponse} res
  * 
  * @example
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME&jid=1234"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe" 
  */
-exports = async function({ query, headers, body}, response) {
+exports = async function(req, res) {
   let targetURL = 'https://github.com/jerrens'; // Default to profile page
   
   // Query params, e.g. '?user=Jerren&co=companyName&jid=1234' => {co: "companyName", user: "world", jid: "1234"}
-  const user = query.user || 'JerrenSaunders';
-  const company = query.co || 'Unknown';
-  const jobID = query.jid || 'default';
+  const user = req.query.user || 'JerrenSaunders';
+  const company = req.query.co || 'Unknown';
+  const jobID = req.query.jid || 'default';
   console.log(`Request from '${company}' to view ${user}'s profile for job ${jobID}`);
 
-  // Load constants
-  const dbName = context.values.get("DBName");
-
-  // Querying a mongodb service:
-  // const doc = context.services.get("mongodb-atlas").db("dbname").collection("coll_name").findOne();
-
-  // Calling a function:
-  // const result = context.functions.execute("function_name", arg1, arg2);
+  // Load constant(s)
+  const dbName = context.values.get('DBName');
+  const redirectCollectionName = 'Redirects';
+  const userProfilesCollectionName = 'UserProfiles';
   
-  const redirectCollection = context.services.get("mongodb-atlas").db(dbName).collection("Redirects");
+  
+    // Start building the document to record this request
+    const linkActivityDoc = {
+      req: context.request,
+      ts: new Date(),
+      action: {}
+    };
 
   // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
+  const redirectCollection = context.services.get('mongodb-atlas').db(dbName).collection(redirectCollectionName);
   try {
-    try {
-      const redirectDoc = await redirectCollection.findOneAndUpdate(
-          // Filter
-          {
-            user,
-            company,
-            jobID
-          },
-          
-          // Update Commands
-          { 
-            $inc: { visits: 1 },
-            $currentDate: { lastAccessed: true },
-            $setOnInsert: { firstAccessed: new Date() }
-          },
-          
-          // Options
-          {
-            upsert: true,
-            returnNewDocument: true
-          }
-        );
+    const redirectFilter = {
+      user,
+      company,
+      jobID
+    };
+    
+    const redirectDoc = await redirectCollection.findOneAndUpdate(
+      redirectFilter,
       
+      // Update Commands
+      { 
+        $inc: { 'activity.visits': 1 },
+        $currentDate: { 'activity.lastAccessed': true },
+        $setOnInsert: { 'activity.firstAccessed': new Date() }
+      },
+      
+      // Options
+      {
+        upsert: true,
+        returnNewDocument: true,
         
+        // Minimize the response to only the details needed
+        projection: {
+          targetURL: true
+        }
+      }
+    ).catch( (updateErr) => {
+      console.log(`Error from findOneAndUpdate: ${updateErr.message}`);
+    });
+    
+    
+    // If targetURL was defined, then this was not an upsert and we know where to go
+    if( redirectDoc.targetURL) {
       targetURL = redirectDoc.targetURL;
-    } catch (updatErr) {
-      console.log(`Error from findOneAndUpdate: ${updatErr}`);
     }
     
-    // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it
-    // Grab the default value for this company, or the default from the user profile
-    if( !targetURL) {
-      console.log('The Redirect document was missing the targetURL field.  Updating...');
+    // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it.
+    else {
+      linkActivityDoc.tags = ['first'];
       
-      // TODO: Update the document so we only have this MISS once
-      targetURL = 'https://github.com/jerrens/ResumeTracker'; // HACK: Hard-coding for now
+      // Grab the default value for this company, or the default from the user profile
+      console.log('The targetURL field was not found in the redirect document.  Retrieving from default...');
+      
+      const defaultTargetInfo = GetDefaultTarget(user, company);
+      
+      if( defaultTargetInfo && defaultTargetInfo.targetURL) {
+        targetURL = defaultTargetInfo.targetURL;
+        linkActivityDoc.tags.push('fromDefault');
+        linkActivityDoc.source = defaultTargetInfo.source;
+      }
+      
+      // If unable to determine a default, then return NotFound
+      else {
+        res.setStatusCode(404);
+        return;
+      }
+      
+      // Update the redirect document so we only have this MISS once
+      redirectCollection.updateOne( redirectFilter, { $set: { targetURL: targetURL } } ).catch( (setTargetURLErr) => console.log(`Failed to update the new Redirect document with the default targetURL: ${err.message}`)); // no need to await
     }
+    
+    // Note where the client was redirected
+    linkActivityDoc.action.redirectedTo = targetURL;
   } catch (err) {
     console.log(`${err.message}`);
+    linkActivityDoc.action.error = err;
   }
   
+  // Record the activity
+  context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc); // no need to await
+  
+  
   // Build the redirect response
-  response.setStatusCode(302);
-  response.setHeader("Location", targetURL);
-  response.setBody(""); // Return a response with no body
+  res.setStatusCode(302);
+  res.setHeader("Location", targetURL);
+  res.setBody(""); // Return a response with no body
   return;
 };
+
+
+/**
+ * Locates the default targetURL for the request from either the company default redirect record, or the user profile
+ * 
+ * @params {string} user - Username to locate the default for
+ * @params {string} [company] - The company name to locate the default for
+ */
+async function GetDefaultTarget(user, company) {
+  const responseProjection = {
+    targetURL: true
+  };
+  
+  // First, look for a default redirect for this company (if provided)
+  if( company) {
+    const defaultCompanyDoc = await context.services.get('mongodb-atlas').db(dbName).collection(redirectCollectionName).findOne(
+      {
+        user: user,
+        company: company,
+        jobID: 'default'
+      },
+      { projection: responseProjection }
+    );
+    
+    if( defaultCompanyDoc && defaultCompanyDoc.targetURL) {
+      console.log('Found the target in the company default redirect document');
+      return {
+        ...defaultCompanyDoc,
+        source: redirectCollectionName
+      }
+    }
+  }
+  
+  // If not found, then retrieve the default from the user profile
+  const userProfileDoc = await context.services.get('mongodb-atlas').db(dbName).collection(userProfilesCollectionName).findOne(
+      {
+        user: user
+      },
+      { projection: responseProjection }
+    );
+  
+  if( userProfileDoc && userProfileDoc.targetURL) {
+    console.log('Found the target in the user profile');
+    return {
+      ...userProfileDoc,
+      source: userProfilesCollectionName
+    }
+  }
+  
+  // If here, then there was no company default entry, nor a user profile
+}
