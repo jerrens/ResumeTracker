@@ -140,6 +140,7 @@ async function GetDefaultTarget(user, company) {
   
   // First, look for a default redirect for this company (if provided)
   if( company) {
+    console.log(`Searching ${redirectCollectionName} for { user: ${user}, company: ${company} }`);
     const defaultCompanyDoc = await context.services.get('mongodb-atlas').db(dbName).collection(redirectCollectionName).findOne(
       {
         user: user,
@@ -148,6 +149,7 @@ async function GetDefaultTarget(user, company) {
       },
       { projection: responseProjection }
     );
+    console.log(`defaultCompanyDoc: ${JSON.stringify(defaultCompanyDoc)}`);
     
     if( defaultCompanyDoc && defaultCompanyDoc.targetURL) {
       console.log('Found the target in the company default redirect document');
@@ -160,12 +162,14 @@ async function GetDefaultTarget(user, company) {
   
   // If not found, then retrieve the default from the user profile
   console.log(`Did not find ${user}'s company default record for '${company}' or it's targetURL field was not defined`);
+  console.log(`Searching ${userProfilesCollectionName} for { user: ${user} }`);
   const userProfileDoc = await context.services.get('mongodb-atlas').db(dbName).collection(userProfilesCollectionName).findOne(
-      {
-        user: user
-      },
-      { projection: responseProjection }
-    );
+    {
+      user: user
+    },
+    { projection: responseProjection }
+  );
+  console.log(`userProfileDoc: ${JSON.stringify(userProfileDoc)}`);
   
   if( userProfileDoc && userProfileDoc.targetURL) {
     console.log('Found the target in the user profile');
