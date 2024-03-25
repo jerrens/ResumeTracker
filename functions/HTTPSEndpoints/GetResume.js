@@ -15,34 +15,32 @@
  * @param {HTTPSEndpointResponse} response
  * 
  * @example
- *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME&rid=1234"
+ *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME&jid=1234"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe" 
  */
-exports = async function({ query, headers, body}, response) {
-    // Data can be extracted from the request as follows:
+exports = function({ query, headers, body}, response) {
+  let targetURL = 'https://github.com/jerrens'; // Default to profile page
+  
+  // Query params, e.g. '?user=Jerren&co=companyName&jid=1234' => {co: "companyName", user: "world", jid: "1234"}
+  const user = query.user || 'JerrenSaunders';
+  const company = query.co || 'Unknown';
+  const jobID = query.jid || 'default';
+  console.log(`Request from Company: ${company} to view ${user} for job ${jobID}`);
 
-    // Query params, e.g. '?user=Jerren&co=companyName&rid=1234' => {co: "companyName", user: "world", rid: "1234"}
-    const user = query.user || 'JerrenSaunders';
-    const company = query.co || 'Unknown';
-    const jobID = query.jid || 'default';
-    console.log(`Request from Company: ${company} to view ${user} for job ${jobID}`);
+  // Load constants
+  const dbName = context.values.get("DBName");
 
-    // You can use 'context' to interact with other application features.
-    // Accessing a value:
-    // var x = context.values.get("value_name");
-    const dbName = context.values.get("DBName");
+  // Querying a mongodb service:
+  // const doc = context.services.get("mongodb-atlas").db("dbname").collection("coll_name").findOne();
 
-    // Querying a mongodb service:
-    // const doc = context.services.get("mongodb-atlas").db("dbname").collection("coll_name").findOne();
+  // Calling a function:
+  // const result = context.functions.execute("function_name", arg1, arg2);
+  
+  const redirectCollection = context.services.get("mongodb-atlas").db(dbName).collection("Redirects");
 
-    // Calling a function:
-    // const result = context.functions.execute("function_name", arg1, arg2);
-    
-    const redirectCollection = context.services.get("mongodb-atlas").db(dbName).collection("Redirects");
-
-    // TODO: Update the counter for number of visits for this company and also retrieve the redirect target URL for the requested resumeID
-    try {
+  // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
+  try {
     const redirectDoc = redirectCollection.findOneAndUpdate(
         // Filter
         {
@@ -65,25 +63,23 @@ exports = async function({ query, headers, body}, response) {
         }
       );
       
-    let targetURL = redirectDoc.targetURL;
+    targetURL = redirectDoc.targetURL;
     
     // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it
     // Grab the default value for this company, or the default from the user profile
     if( !targetURL) {
       console.log('The Redirect document was missing the targetURL field.  Updating...');
-      targetURL = 'https://github.com/jerrens/ResumeTracker'; // HACK: Hard-coding for now
       
-      // TODO: Update the document so we only have this MISS once (no need to await this update)
+      // TODO: Update the document so we only have this MISS once
+      targetURL = 'https://github.com/jerrens/ResumeTracker'; // HACK: Hard-coding for now
     }
-    
-    
-    // Build the redirect response
-    response.setStatusCode(302);
-    response.setHeader("Location", targetURL);
-    response.setBody(""); // Return a response with no body
-    } catch (err) {
-      console.error(`${err.message}`);
-    }
-    
-    return;
+  } catch (err) {
+    console.error(`${err.message}`);
+  }
+  
+  // Build the redirect response
+  response.setStatusCode(302);
+  response.setHeader("Location", targetURL);
+  response.setBody(""); // Return a response with no body
+  return;
 };
