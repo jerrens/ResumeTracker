@@ -19,7 +19,8 @@ exports = async function(changeEvent) {
     const indexName = 'QueryParamLookup'
   
     // Check if the index already exists
-    const indexExists = await collection.indexExists(indexName);
+    const indexList = await collection.getIndexes();
+    const indexExists = indexList.some( (elem) => elem.name === 'QueryParamLookup')
 
     if (!indexExists) {
       // Create the index
