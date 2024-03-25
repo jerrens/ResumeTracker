@@ -95,6 +95,7 @@ exports = async function(req, res) {
       
       // If unable to determine a default, then return NotFound
       else {
+        console.log('Unable to find a company default document for this user, nor the user profile document')
         res.setStatusCode(404);
         return;
       }
@@ -158,6 +159,7 @@ async function GetDefaultTarget(user, company) {
   }
   
   // If not found, then retrieve the default from the user profile
+  console.log(`Did not find ${user}'s company default record for '${company}' or it's targetURL field was not defined`);
   const userProfileDoc = await context.services.get('mongodb-atlas').db(dbName).collection(userProfilesCollectionName).findOne(
       {
         user: user
@@ -174,4 +176,5 @@ async function GetDefaultTarget(user, company) {
   }
   
   // If here, then there was no company default entry, nor a user profile
+  console.log(`Did not find ${user}'s profile or the targetURL field was not defined`);
 }
