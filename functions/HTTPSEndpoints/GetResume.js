@@ -19,7 +19,7 @@
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe" 
  */
-exports = function({ query, headers, body}, response) {
+exports = async function({ query, headers, body}, response) {
   let targetURL = 'https://github.com/jerrens'; // Default to profile page
   
   // Query params, e.g. '?user=Jerren&co=companyName&jid=1234' => {co: "companyName", user: "world", jid: "1234"}
@@ -41,7 +41,7 @@ exports = function({ query, headers, body}, response) {
 
   // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
   try {
-    const redirectDoc = redirectCollection.findOneAndUpdate(
+    const redirectDoc = await redirectCollection.findOneAndUpdate(
         // Filter
         {
           user,
