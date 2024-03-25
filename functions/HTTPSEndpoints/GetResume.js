@@ -86,6 +86,7 @@ exports = async function(req, res) {
       console.log('The targetURL field was not found in the redirect document.  Retrieving from default...');
       
       const defaultTargetInfo = GetDefaultTarget(user, company);
+      console.log(`Default Target Info: ${JSON.stringify(defaultTargetInfo)}`);
       
       if( defaultTargetInfo && defaultTargetInfo.targetURL) {
         targetURL = defaultTargetInfo.targetURL;
@@ -101,7 +102,8 @@ exports = async function(req, res) {
       }
       
       // Update the redirect document so we only have this MISS once
-      redirectCollection.updateOne( redirectFilter, { $set: { targetURL: targetURL } } ).catch( (setTargetURLErr) => console.log(`Failed to update the new Redirect document with the default targetURL: ${err.message}`)); // no need to await
+      redirectCollection.updateOne( redirectFilter, { $set: { targetURL: targetURL } } )
+        .catch( (setTargetURLErr) => console.log(`Failed to update the new Redirect document with the default targetURL: ${setTargetURLErr.message}`)); // no need to await
     }
     
     // Note where the client was redirected
@@ -112,7 +114,8 @@ exports = async function(req, res) {
   }
   
   // Record the activity
-  context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc); // no need to await
+  context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc)
+    .catch( (insertLinkActivityErr) = console.log(`Error while inserting LinkActivity document: ${insertLinkActivityErr.message}`)); // no need to await
   
   // Build the redirect response
   res.setStatusCode(302);
