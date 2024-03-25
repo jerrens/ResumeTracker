@@ -85,7 +85,7 @@ exports = async function(req, res) {
       // Grab the default value for this company, or the default from the user profile
       console.log('The targetURL field was not found in the redirect document.  Retrieving from default...');
       
-      const defaultTargetInfo = GetDefaultTarget(user, company);
+      const defaultTargetInfo = await GetDefaultTarget(user, company);
       console.log(`Default Target Info: ${JSON.stringify(defaultTargetInfo)}`);
       
       if( defaultTargetInfo && defaultTargetInfo.targetURL) {
