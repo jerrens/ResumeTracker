@@ -42,30 +42,30 @@ exports = async function({ query, headers, body}, response) {
   // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
   try {
     try {
-    const redirectDoc = await redirectCollection.findOneAndUpdate(
-        // Filter
-        {
-          user,
-          company,
-          jobID
-        },
-        
-        // Update Commands
-        { 
-          $inc: { visits: 1 },
-          $currentDate: { lastAccessed: true },
-          $setOnInsert: { firstAccessed: new Date() }
-        },
-        
-        // Options
-        {
-          upsert: true,
-          returnDocument: 'after'
-        }
-      );
-    
+      const redirectDoc = await redirectCollection.findOneAndUpdate(
+          // Filter
+          {
+            user,
+            company,
+            jobID
+          },
+          
+          // Update Commands
+          { 
+            $inc: { visits: 1 },
+            $currentDate: { lastAccessed: true },
+            $setOnInsert: { firstAccessed: new Date() }
+          },
+          
+          // Options
+          {
+            upsert: true,
+            returnNewDocument: true
+          }
+        );
       
-    targetURL = redirectDoc.targetURL;
+        
+      targetURL = redirectDoc.targetURL;
     } catch (updatErr) {
       console.log(`Error from findOneAndUpdate: ${updatErr}`);
     }
