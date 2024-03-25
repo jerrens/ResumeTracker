@@ -1,7 +1,7 @@
 {
     "name": "AddIndexToRedirectsCollection",
     "type": "DATABASE",
-    "disabled": false,
+    "disabled": true,
     "config": {
         "collection": "",
         "database": "ResumeTracker",
