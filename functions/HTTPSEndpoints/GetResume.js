@@ -26,7 +26,7 @@ exports = async function({ query, headers, body}, response) {
   const user = query.user || 'JerrenSaunders';
   const company = query.co || 'Unknown';
   const jobID = query.jid || 'default';
-  console.log(`Request from Company: ${company} to view ${user} for job ${jobID}`);
+  console.log(`Request from '${company}' to view ${user}'s profile for job ${jobID}`);
 
   // Load constants
   const dbName = context.values.get("DBName");
@@ -41,6 +41,7 @@ exports = async function({ query, headers, body}, response) {
 
   // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
   try {
+    try {
     const redirectDoc = await redirectCollection.findOneAndUpdate(
         // Filter
         {
@@ -62,8 +63,12 @@ exports = async function({ query, headers, body}, response) {
           returnDocument: 'after'
         }
       );
+    
       
     targetURL = redirectDoc.targetURL;
+    } catch (updatErr) {
+      console.log(`Error from findOneAndUpdate: ${updatErr}`);
+    }
     
     // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it
     // Grab the default value for this company, or the default from the user profile
@@ -74,7 +79,7 @@ exports = async function({ query, headers, body}, response) {
       targetURL = 'https://github.com/jerrens/ResumeTracker'; // HACK: Hard-coding for now
     }
   } catch (err) {
-    console.error(`${err.message}`);
+    console.log(`${err.message}`);
   }
   
   // Build the redirect response
