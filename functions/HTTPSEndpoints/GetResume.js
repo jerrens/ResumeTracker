@@ -27,19 +27,17 @@ exports = async function(req, res) {
   const company = req.query.co || 'Unknown';
   const jobID = req.query.jid || 'default';
   console.log(`Request from '${company}' to view ${user}'s profile for job ${jobID}`);
-
+  
   // Load constant(s)
   const dbName = context.values.get('DBName');
-  const redirectCollectionName = 'Redirects';
-  const userProfilesCollectionName = 'UserProfiles';
-  
-  
-    // Start building the document to record this request
-    const linkActivityDoc = {
-      req: context.request,
-      ts: new Date(),
-      action: {}
-    };
+  const redirectCollectionName = context.values.get('RedirectsColName');
+
+  // Start building the document to record this request
+  const linkActivityDoc = {
+    req: context.request,
+    ts: new Date(),
+    action: {}
+  };
 
   // Update activity for this company and also retrieve the redirect target URL for the requested resumeID
   const redirectCollection = context.services.get('mongodb-atlas').db(dbName).collection(redirectCollectionName);
@@ -115,7 +113,6 @@ exports = async function(req, res) {
   // Record the activity
   context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc); // no need to await
   
-  
   // Build the redirect response
   res.setStatusCode(302);
   res.setHeader("Location", targetURL);
@@ -131,6 +128,11 @@ exports = async function(req, res) {
  * @params {string} [company] - The company name to locate the default for
  */
 async function GetDefaultTarget(user, company) {
+  // Load constant(s)
+  const dbName = context.values.get('DBName');
+  const redirectCollectionName = context.values.get('RedirectsColName');
+  const userProfilesCollectionName = context.values.get('UserProfilesColName');
+  
   const responseProjection = {
     targetURL: true
   };
