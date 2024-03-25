@@ -115,7 +115,7 @@ exports = async function(req, res) {
   
   // Record the activity
   context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc)
-    .catch( (insertLinkActivityErr) = console.log(`Error while inserting LinkActivity document: ${insertLinkActivityErr.message}`)); // no need to await
+    .catch( (insertLinkActivityErr) => console.log(`Error while inserting LinkActivity document: ${insertLinkActivityErr.message}`)); // no need to await
   
   // Build the redirect response
   res.setStatusCode(302);
