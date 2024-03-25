@@ -43,12 +43,12 @@ exports = async function({ query, headers, body}, response) {
 
     // TODO: Update the counter for number of visits for this company and also retrieve the redirect target URL for the requested resumeID
     try {
-    const redirectDoc = await redirectCollection.findOneAndUpdate(
+    const redirectDoc = redirectCollection.findOneAndUpdate(
         // Filter
         {
-          user: user,
-          company: company,
-          jobID: jobID
+          user,
+          company,
+          jobID
         },
         
         // Update Commands
@@ -67,7 +67,7 @@ exports = async function({ query, headers, body}, response) {
       
     let targetURL = redirectDoc.targetURL;
     
-    // If the targetURL wasn't defined, we need to retrieve it
+    // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it
     // Grab the default value for this company, or the default from the user profile
     if( !targetURL) {
       console.log('The Redirect document was missing the targetURL field.  Updating...');
@@ -82,7 +82,7 @@ exports = async function({ query, headers, body}, response) {
     response.setHeader("Location", targetURL);
     response.setBody(""); // Return a response with no body
     } catch (err) {
-      console.error(`${err.message}; ${err.stack}`);
+      console.error(`${err.message}`);
     }
     
     return;
