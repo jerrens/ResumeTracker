@@ -26,7 +26,7 @@ exports = async function({ query, headers, body}, response) {
     const user = query.user || 'JerrenSaunders';
     const company = query.co || 'Unknown';
     const jobID = query.jid || 'default';
-    console.log(`Request from Company: ${company} to view ${user}'s resume: ${resumeID}`);
+    console.log(`Request from Company: ${company} to view ${user} for job ${jobID}`);
 
     // You can use 'context' to interact with other application features.
     // Accessing a value:
