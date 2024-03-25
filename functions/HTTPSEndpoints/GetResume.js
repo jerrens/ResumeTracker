@@ -42,6 +42,7 @@ exports = async function({ query, headers, body}, response) {
     const redirectCollection = context.services.get("mongodb-atlas").db(dbName).collection("Redirects");
 
     // TODO: Update the counter for number of visits for this company and also retrieve the redirect target URL for the requested resumeID
+    try {
     const redirectDoc = await redirectCollection.findOneAndUpdate(
         // Filter
         {
@@ -80,6 +81,9 @@ exports = async function({ query, headers, body}, response) {
     response.setStatusCode(302);
     response.setHeader("Location", targetURL);
     response.setBody(""); // Return a response with no body
+    } catch (err) {
+      console.error(`${err.message}; ${err.stack}`);
+    }
     
     return;
 };
