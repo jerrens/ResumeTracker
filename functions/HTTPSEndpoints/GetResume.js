@@ -11,26 +11,35 @@
  * 
  * @route GET /resume
  * @group resume
- * @param {HTTPSEndpointRequest} req
- * @param {HTTPSEndpointResponse} res
+ * @param {HTTPSEndpointRequest} req - Request
+ * @param {HTTPSEndpointResponse} res - Response
  * 
  * @example
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME&jid=1234"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe&co=ACME"
  *  curl -vvvv -X GET "https://us-east-1.aws.data.mongodb-api.com/app/resumetracker-ksqcq/endpoint/resume?user=jdoe" 
  */
-exports = async function(req, res) {
-  let targetURL = 'https://github.com/jerrens'; // Default to profile page
-  
+exports = async function (req, res) {
+  let targetURL = 'https://github.com/jerrens/ResumeTracker';
+
+  const unknownQueryParam = 'Unknown';
+
   // Query params, e.g. '?user=Jerren&co=companyName&jid=1234' => {co: "companyName", user: "world", jid: "1234"}
-  const user = req.query.user || 'JerrenSaunders';
-  const company = req.query.co || 'Unknown';
+  const user = req.query.user || unknownQueryParam;
+  const company = req.query.co || unknownQueryParam;
   const jobID = req.query.jid || 'default';
   console.log(`Request from '${company}' to view ${user}'s profile for job ${jobID}`);
-  
+
+  // If the user parameter was not included, then this is from an unknown source (likely a spider) or an improperly formatted request, reject immediately
+  if (user === unknownQueryParam) {
+    res.setStatusCode(400);
+    return;
+  }
+
   // Load constant(s)
   const dbName = context.values.get('DBName');
   const redirectCollectionName = context.values.get('RedirectsColName');
+  const linkActivityCollectionName = 'LinkActivity';
 
   // Start building the document to record this request
   const linkActivityDoc = {
@@ -47,76 +56,80 @@ exports = async function(req, res) {
       company,
       jobID
     };
-    
+
     const redirectDoc = await redirectCollection.findOneAndUpdate(
       redirectFilter,
-      
+
       // Update Commands
-      { 
+      {
         $inc: { 'activity.visits': 1 },
         $currentDate: { 'activity.lastAccessed': true },
         $setOnInsert: { 'activity.firstAccessed': new Date() }
       },
-      
+
       // Options
       {
         upsert: true,
         returnNewDocument: true,
-        
+
         // Minimize the response to only the details needed
         projection: {
           targetURL: true
         }
       }
-    ).catch( (updateErr) => {
+    ).catch((updateErr) => {
       console.log(`Error from findOneAndUpdate: ${updateErr.message}`);
     });
-    
-    
+
+
     // If targetURL was defined, then this was not an upsert and we know where to go
-    if( redirectDoc.targetURL) {
+    if (redirectDoc.targetURL) {
       targetURL = redirectDoc.targetURL;
     }
-    
+
     // If the targetURL wasn't defined (upserted or missing field), we need to retrieve it.
     else {
       linkActivityDoc.tags = ['first'];
-      
+
       // Grab the default value for this company, or the default from the user profile
       console.log('The targetURL field was not found in the redirect document.  Retrieving from default...');
-      
+
       const defaultTargetInfo = await GetDefaultTarget(user, company);
       console.log(`Default Target Info: ${JSON.stringify(defaultTargetInfo)}`);
-      
-      if( defaultTargetInfo && defaultTargetInfo.targetURL) {
+
+      if (defaultTargetInfo && defaultTargetInfo.targetURL) {
         targetURL = defaultTargetInfo.targetURL;
         linkActivityDoc.tags.push('fromDefault');
         linkActivityDoc.source = defaultTargetInfo.source;
       }
-      
+
       // If unable to determine a default, then return NotFound
       else {
         console.log('Unable to find a company default document for this user, nor the user profile document')
         res.setStatusCode(404);
         return;
       }
-      
+
       // Update the redirect document so we only have this MISS once
-      redirectCollection.updateOne( redirectFilter, { $set: { targetURL: targetURL } } )
-        .catch( (setTargetURLErr) => console.log(`Failed to update the new Redirect document with the default targetURL: ${setTargetURLErr.message}`)); // no need to await
+      redirectCollection.updateOne(redirectFilter, { $set: { targetURL: targetURL } })
+        .catch((setTargetURLErr) => console.log(`Failed to update the new Redirect document with the default targetURL: ${setTargetURLErr.message}`)); // no need to await
     }
-    
+
     // Note where the client was redirected
     linkActivityDoc.action.redirectedTo = targetURL;
   } catch (err) {
     console.log(`${err.message}`);
+
+    linkActivityDoc.tags = linkActivityDoc.tags || [];
+    linkActivityDoc.tags.push('error');
+
     linkActivityDoc.action.error = err;
   }
-  
+
   // Record the activity
-  context.services.get('mongodb-atlas').db(dbName).collection('LinkActivity').insertOne(linkActivityDoc)
-    .catch( (insertLinkActivityErr) => console.log(`Error while inserting LinkActivity document: ${insertLinkActivityErr.message}`)); // no need to await
-  
+  context.services.get('mongodb-atlas').db(dbName).collection(linkActivityCollectionName).insertOne(linkActivityDoc)
+    .catch((insertLinkActivityErr) => console.log(`Error while inserting document in ${linkActivityCollectionName}: ${insertLinkActivityErr.message}`)); // no need to await
+
   // Build the redirect response
   res.setStatusCode(302);
   res.setHeader("Location", targetURL);
@@ -136,13 +149,13 @@ async function GetDefaultTarget(user, company) {
   const dbName = context.values.get('DBName');
   const redirectCollectionName = context.values.get('RedirectsColName');
   const userProfilesCollectionName = context.values.get('UserProfilesColName');
-  
+
   const responseProjection = {
     targetURL: true
   };
-  
+
   // First, look for a default redirect for this company (if provided)
-  if( company) {
+  if (company) {
     console.log(`Searching ${redirectCollectionName} for { user: ${user}, company: ${company} }`);
     const defaultCompanyDoc = await context.services.get('mongodb-atlas').db(dbName).collection(redirectCollectionName).findOne(
       {
@@ -153,8 +166,8 @@ async function GetDefaultTarget(user, company) {
       responseProjection
     );
     console.log(`defaultCompanyDoc: ${JSON.stringify(defaultCompanyDoc)}`);
-    
-    if( defaultCompanyDoc && defaultCompanyDoc.targetURL) {
+
+    if (defaultCompanyDoc && defaultCompanyDoc.targetURL) {
       console.log('Found the target in the company default redirect document');
       return {
         ...defaultCompanyDoc,
@@ -162,7 +175,7 @@ async function GetDefaultTarget(user, company) {
       }
     }
   }
-  
+
   // If not found, then retrieve the default from the user profile
   console.log(`Did not find ${user}'s company default record for '${company}' or it's targetURL field was not defined`);
   console.log(`Searching ${userProfilesCollectionName} for { user: ${user} }`);
@@ -173,15 +186,15 @@ async function GetDefaultTarget(user, company) {
     responseProjection
   );
   console.log(`userProfileDoc: ${JSON.stringify(userProfileDoc)}`);
-  
-  if( userProfileDoc && userProfileDoc.targetURL) {
+
+  if (userProfileDoc && userProfileDoc.targetURL) {
     console.log('Found the target in the user profile');
     return {
       ...userProfileDoc,
       source: userProfilesCollectionName
     }
   }
-  
+
   // If here, then there was no company default entry, nor a user profile
   console.log(`Did not find ${user}'s profile or the targetURL field was not defined`);
 }

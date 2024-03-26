@@ -1,0 +1,8 @@
+{
+    "ignoreWords": [
+        "autonumber",
+        "BSON",
+        "upsert",
+        "upserted"
+    ]
+}
