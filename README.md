@@ -53,6 +53,11 @@ Additional documentation including collections, configuration, and [schema](./do
 
 The primary logic that handles the redirect lookup can be found in [/functions/HTTPSEndpoints/GetResume.js](./functions/HTTPSEndpoints/GetResume.js).
 
+### Aggregates
+
+Initially, aggregates will be used to analyze the contents of the database using Studio 3T.  These aggregates can be found in [/reports/aggregates](./reports/aggregates/).
+Over time, I hope to expand this interface by creating a simple HTML page to retrieve data and visualize the data.
+
 ## Components Used
 
 1. Purchased a custom domain from [NameCheap.com](https://NameCheap.com)
@@ -73,9 +78,10 @@ The primary logic that handles the redirect lookup can be found in [/functions/H
   - See <https://www.mongodb.com/docs/v7.0/core/timeseries/timeseries-migrate-data-into-timeseries-collection/>
 - [ ] Review Indexes
 - [ ] Refactor [/functions/HTTPSEndpoints/GetResume.js](./functions/HTTPSEndpoints/GetResume.js) function.
+- [ ] Create Tests - <https://www.mongodb.com/docs/atlas/app-services/functions/test/>
 - [ ] Explore Mongo Atlas Charts to view link activity
 - [ ] Alternative: Build Simple static UI page to view link activity
-  - Use GitHub Pages
+  - Use [GitHub Pages](https://pages.github.com/)
   - Add endpoint to Mongo App Service to retrieve the link activity (query params for user)
   <!-- - See <https://medium.com/flycode/how-to-deploy-a-static-website-for-free-using-github-pages-8eddc194853b> for guide -->
 - [ ] Add ES Lint configuration to project
